@@ -1,18 +1,19 @@
 name: weekly-learning
 on:
-schedule:
-- cron: '0 8 * * 1' # 월요일 08:00 UTC = KST 17:00
-workflow_dispatch: {}
+  schedule:
+    - cron: '0 8 * * 1'   # 월요일 08:00 UTC = KST 17:00
+  workflow_dispatch: {}
+
 jobs:
-call-train-endpoint:
-runs-on: ubuntu-latest
-steps:
-- name: Call train-digest
-run: |
-curl -sS -X POST "$API_BASE/api/train-digest" \
--H "x-api-key: $API_KEY" \
--H "Content-Type: application/json" \
--d '{}'
-env:
-API_BASE: ${{ secrets.API_BASE }}
-API_KEY: ${{ secrets.API_KEY }}
+  call-train-endpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call train-digest
+        run: |
+          curl -sS -X POST "$API_BASE/api/train-digest" \
+            -H "x-api-key: $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+    env:
+      API_BASE: ${{ secrets.API_BASE }}
+      API_KEY:  ${{ secrets.API_KEY }}
