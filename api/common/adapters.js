@@ -1,6 +1,6 @@
 // api/common/adapters.js — stable exports
 import { XMLParser } from 'fast-xml-parser';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import { normalizeUrl } from './utils.js';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
