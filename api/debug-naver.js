@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     const status = r.status;
     const body = await r.text();
     let j = {};
-    try { j = JSON.parse(body); } catch { /* keep raw */ }
+    try { j = JSON.parse(body); } catch {}
 
     const items = Array.isArray(j.items) ? j.items : [];
     const titles = items.map(it => it.title?.replace(/<[^>]+>/g,'')).slice(0,5);
