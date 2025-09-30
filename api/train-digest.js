@@ -89,18 +89,16 @@ export default async function handler(req, res) {
     const en4 = pick4(pools['글로벌 모빌리티']);
     const ai4 = pick4(pools['AI/Web3']);
 
+    // ✅ 안내 문구 수정
     await sendMessage(
       CHAT_ID,
-      '[국내 모빌리티]\n[글로벌 모빌리티]\n[AI·Web3 신기술]\n— 각 기사에 "좋아요 / 관심 없어요" 버튼을 사용해 주세요.',
+      '좋아요: 해당 기사로 익일에 메인 뉴스로 발송됩니다.\n관심 없어요: 해당 기사는 앞으로 추천하지 않습니다. (완전히 관련 없는 기사에만 눌러주세요.)',
       { disablePreview: true }
     );
 
     const sendItem = async (cat, it) => {
-      // 신문사 제거
       const cleanTitle = it.title.split(' - ')[0];
-      // 숏링크 적용
       const shortUrl = await shortenUrl(it.url);
-      // 포맷: [#카테고리] 제목 \n "숏링크"
       const body = `[#${cat}] ${cleanTitle}\n${shortUrl}`;
 
       const compactId = (await sha1(it.url)).slice(0, 16);
