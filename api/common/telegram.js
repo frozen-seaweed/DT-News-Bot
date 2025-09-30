@@ -27,17 +27,21 @@ export function likeButtons(articleId, category) {
 
 export async function answerCallbackQuery(id, text = '') {
   try {
-    console.log('👉 answerCallbackQuery:', id, text);
+    console.log('👉 answerCallbackQuery sending:', id, text);
     const r = await fetch(`${API}/answerCallbackQuery`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ callback_query_id: id, text }),
     });
+    const result = await r.json().catch(() => null);
+
     if (!r.ok) {
-      const err = await r.text();
-      console.error('❌ answerCallbackQuery error:', err);
+      console.error('❌ answerCallbackQuery error:', result || (await r.text()));
+      return { ok: false, error: result };
     }
+    return { ok: true, result };
   } catch (e) {
     console.error('❌ answerCallbackQuery exception:', e);
+    return { ok: false, error: String(e) };
   }
 }
