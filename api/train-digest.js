@@ -12,7 +12,7 @@ import { rankArticles, buildPrefVectorFromLikes } from './common/ranking.js';
 import { summarizeOneLine } from './common/summarizer.js';
 import { sendMessage } from './common/telegram.js';
 import { kv } from './common/kv.js';
-import { sha1 } from './common/utils.js';
+import { sha1, shortenUrl } from './common/utils.js';
 
 const CHAT_ID = process.env.CHAT_ID_LIKE;
 const REPORT_ID = process.env.CHAT_ID_REPORT;
@@ -98,7 +98,8 @@ export default async function handler(req, res) {
 
     const sendItem = async (cat, it, idx) => {
       const oneLine = summarizeOneLine(it);
-      const body = `[#${cat}] ${idx + 1}. ${it.title}\n${oneLine}\n${it.url}`;
+      const shortUrl = await shortenUrl(it.url);
+      const body = `[#${cat}] ${idx + 1}. ${it.title}\n${oneLine}\n${shortUrl}`;
       const compactId = (await sha1(it.url)).slice(0, 16);
       const buttons = [[
         { text: '좋아요',      callback_data: `like|${cat}|${compactId}` },
