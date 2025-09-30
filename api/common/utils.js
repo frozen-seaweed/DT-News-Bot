@@ -59,15 +59,20 @@ export function sha1(str) {
   );
 }
 
-// ✅ TinyURL API 기반 숏링크
+// ✅ is.gd API 기반 숏링크 + 로그 추가
 export async function shortenUrl(url) {
   try {
-    const api = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`;
+    const api = `https://is.gd/create.php?format=simple&url=${encodeURIComponent(url)}`;
     const r = await fetch(api);
-    if (!r.ok) return url;
+    if (!r.ok) {
+      console.error("shortenUrl fetch failed:", r.status, r.statusText);
+      return url;
+    }
     const short = await r.text();
+    console.log("shortenUrl success:", url, "->", short);
     return short.startsWith('http') ? short : url;
-  } catch {
+  } catch (e) {
+    console.error("shortenUrl error:", e);
     return url;
   }
 }
