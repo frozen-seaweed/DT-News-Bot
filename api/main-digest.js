@@ -77,6 +77,9 @@ function header() {
 }
 
 async function section(title, arr) {
+  if (!arr || arr.length === 0) {
+    return `\n[${title}]\n(오늘 기사 없음)`;
+  }
   const lines = [`\n[${title}]`];
   for (const it of arr) {
     const shortUrl = await shortenUrl(it.url);
@@ -112,17 +115,24 @@ export default async function handler(req, res) {
     const ai2 = pick2(pools['AI/Web3']); // 이미 한국어만 들어옴
 
     const blocks = [header()];
-    if (ko2.length) blocks.push(await section('국내', ko2));
-    if (en2.length) blocks.push(await section('글로벌', en2));
-    if (ai2.length) blocks.push(await section('AI 신기술', ai2));
+    blocks.push(await section('국내', ko2));
+    blocks.push(await section('글로벌', en2));
+    blocks.push(await section('AI 신기술', ai2));
     const text = blocks.join('\n\n');
 
     await sendMessage(CHAT_ID, text, { disablePreview: true });
     await kv.incrby('expo:count', 1);
 
-    res.status(200).json({ ok: true, sent: true, counts: { ko: ko2.length, en: en2.length, ai: ai2.length } });
+    res.status(200).json({ 
+      ok: true, 
+      sent: true, 
+      counts: { ko: ko2.length, en: en2.length, ai: ai2.length }, 
+      preview: text 
+    });
   } catch (e) {
-    try { await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`); } catch {}
+    try { 
+      await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`); 
+    } catch {}
     res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
 }
