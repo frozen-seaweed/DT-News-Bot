@@ -5,6 +5,7 @@ export default async function handler(req, res) {
   try {
     const body = await req.json();
 
+    // 일반 메시지 처리 (/mode ...)
     if (body?.message?.text) {
       const text = body.message.text.trim();
       if (text === '/mode learn') { await kv.set('mode', 'learn'); }
@@ -12,6 +13,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // 버튼 콜백 처리
     if (body?.callback_query) {
       const { id, data, message } = body.callback_query;
       const [type, category, articleId] = (data || '').split('|');
@@ -26,16 +28,18 @@ export default async function handler(req, res) {
 
         arr.push({ title, category, ts: Date.now() });
 
-        // 30일 내 것만 남기기
+        // 30일 내 데이터만 유지
         const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
         const arr2 = arr.filter(x => x.ts >= cutoff);
 
         await kv.set('likes:recent', JSON.stringify(arr2));
+        console.log('👍 LIKE STORED:', arr2.length, arr2.at(-1));
 
-        console.log('👍 LIKE STORED:', arr2.length, arr2.at(-1));  // ✅ 로그 추가
+        // 콜백 응답
         await answerCallbackQuery(id, '기록되었습니다.');
       } else if (type === 'dislike') {
         await kv.incrby('dislike:count', 1);
+        console.log('👎 DISLIKE STORED');
         await answerCallbackQuery(id, '관심 없음 처리되었습니다.');
       }
 
@@ -43,4 +47,8 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ ok: true });
-  } catch
+  } catch (e) {
+    console.error('❌ tg-webhook error:', e);
+    return res.status(200).json({ ok: true });
+  }
+}
