@@ -3,9 +3,11 @@ import { kv } from './common/kv.js';
 
 export default async function handler(req, res) {
   try {
-    const body = await req.json();
+    // ✅ Vercel에서는 req.json() 대신 아래 사용
+    const body = req.body 
+      ? req.body 
+      : await new Response(req).json();
 
-    // 일반 텍스트 메시지 (/mode ...)
     if (body?.message?.text) {
       const text = body.message.text.trim();
       if (text === '/mode learn') { await kv.set('mode', 'learn'); }
@@ -13,7 +15,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // 버튼 콜백 처리
     if (body?.callback_query) {
       console.log('👉 CALLBACK QUERY RAW:', body.callback_query);
 
@@ -30,13 +31,11 @@ export default async function handler(req, res) {
 
         arr.push({ title, category, ts: Date.now() });
 
-        // 30일 내 것만 유지
         const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
         const arr2 = arr.filter(x => x.ts >= cutoff);
-
         await kv.set('likes:recent', JSON.stringify(arr2));
-        console.log('👍 LIKE STORED:', arr2.length);
 
+        console.log('👍 LIKE STORED:', arr2.length, arr2.at(-1));
         const result = await answerCallbackQuery(id, '기록되었습니다.');
         console.log('📩 answerCallbackQuery result:', result);
       } else if (type === 'dislike') {
