@@ -19,7 +19,6 @@ const REPORT_ID = process.env.CHAT_ID_REPORT;
 async function collect() {
   const arr = [];
 
-  // Google: 국내 모빌리티(ko), 글로벌(en), 신기술(ko)
   arr.push(...await fetchGoogleNewsRSS({
     query: '(현대차 OR 기아 OR 자동차 OR 자율주행 OR 전기차 OR 완성차) -연예 -프로야구',
     lang: 'ko', region: 'KR'
@@ -33,11 +32,9 @@ async function collect() {
     lang: 'ko', region: 'KR'
   }));
 
-  // NAVER: 국내 모빌리티 + 신기술(국문)
   arr.push(...await fetchNaverNewsAPI({ query: '자동차 OR 자율주행 OR 전기차 OR 완성차' }));
   arr.push(...await fetchNaverNewsAPI({ query: '인공지능 OR AI OR 로봇 OR 로보틱스 OR 웹3 OR 블록체인 OR 반도체 OR 칩' }));
 
-  // 고정 소스
   arr.push(...await fetchDailycarRSS());
   arr.push(...await fetchGlobalAutonewsHTML());
   arr.push(...await fetchCustomNewsAPI());
@@ -71,7 +68,6 @@ function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48, 72]) {
   return last;
 }
 
-// ✅ 포맷 수정 + 숏링크 적용
 function header() {
   return `[DT News | ${formatDateKST()}]`;
 }
@@ -94,7 +90,6 @@ export default async function handler(req, res) {
     let items = await collect();
     items = items.filter(passesBlacklist);
 
-    // 7일 중복 제거
     const uniq = [];
     const seen = new Set();
     for (const it of items) {
@@ -112,7 +107,7 @@ export default async function handler(req, res) {
 
     const ko2 = pick2(pools['국내 모빌리티']);
     const en2 = pick2(pools['글로벌 모빌리티']);
-    const ai2 = pick2(pools['AI/Web3']); // 이미 한국어만 들어옴
+    const ai2 = pick2(pools['AI/Web3']);
 
     const blocks = [header()];
     blocks.push(await section('국내', ko2));
