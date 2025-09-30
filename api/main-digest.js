@@ -72,6 +72,7 @@ function header() {
   return `[DT News | ${formatDateKST()}]`;
 }
 
+// ✅ 신문사 이름 제거 + 기사 사이에 빈 줄 추가
 async function section(title, arr) {
   if (!arr || arr.length === 0) {
     return `\n[${title}]\n(오늘 기사 없음)`;
@@ -79,10 +80,13 @@ async function section(title, arr) {
   const lines = [`\n[${title}]`];
   for (const it of arr) {
     const shortUrl = await shortenUrl(it.url);
-    lines.push(`■ ${it.title}`);
+    // " - " 뒤에 붙는 신문사명 제거
+    const cleanTitle = it.title.split(' - ')[0];
+    lines.push(`■ ${cleanTitle}`);
     lines.push(shortUrl);
+    lines.push(''); // 빈 줄 추가
   }
-  return lines.join('\n');
+  return lines.join('\n').trim();
 }
 
 export default async function handler(req, res) {
