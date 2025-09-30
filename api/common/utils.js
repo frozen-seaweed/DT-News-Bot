@@ -69,4 +69,15 @@ const buf = new TextEncoder().encode(str);
 return crypto.subtle.digest('SHA-1', buf).then(arr =>
 Array.from(new Uint8Array(arr)).map(b=>b.toString(16).padStart(2,'0')).join('')
 );
+
+export async function shortenUrl(url) {
+  try {
+    const api = `https://buly.kr/api/shorten?url=${encodeURIComponent(url)}`;
+    const r = await fetch(api);
+    if (!r.ok) return url; // 실패 시 원본 반환
+    const j = await r.json();
+    return j?.short_url || url;
+  } catch {
+    return url; // 실패 시 원본
+  }
 }
