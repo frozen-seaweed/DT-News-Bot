@@ -9,7 +9,6 @@ import {
 import { classifyCategory } from './common/classify.js';
 import { passesBlacklist, withinFreshWindow, notDuplicated7d } from './common/filters.js';
 import { rankArticles, buildPrefVectorFromLikes } from './common/ranking.js';
-import { summarizeOneLine } from './common/summarizer.js';
 import { sendMessage } from './common/telegram.js';
 import { formatDateKST } from './common/utils.js';
 import { kv } from './common/kv.js';
@@ -51,6 +50,7 @@ function group(items) {
   for (const it of items) g[classifyCategory(it)].push(it);
   return g;
 }
+
 async function prefs() {
   const raw = await kv.get('likes:recent');
   const likes = raw ? JSON.parse(raw) : [];
@@ -71,12 +71,17 @@ function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48, 72]) {
   return last;
 }
 
-function header() { return `${formatDateKST()} | DT AI News Bot`; }
+// ✅ 포맷 수정
+function header() {
+  return `[DT News | ${formatDateKST()}]`;
+}
+
 function section(title, arr) {
-  const lines = [`[${title}]`];
-  arr.forEach((it, i) => {
-    lines.push(`${i + 1}. ${it.title}`);
-    lines.push(summarizeOneLine(it));
+  const lines = [`\n[${title}]`];
+  arr.forEach((it) => {
+    lines.push(`■ ${it.title}`);
+    // 현재는 원본 URL, 추후 숏링크 함수 붙여서 변환 가능
+    lines.push(it.url);
   });
   return lines.join('\n');
 }
@@ -107,9 +112,9 @@ export default async function handler(req, res) {
     const ai2 = pick2(pools['AI/Web3']); // 이미 한국어만 들어옴
 
     const blocks = [header()];
-    if (ko2.length) blocks.push(section('국내 모빌리티', ko2));
-    if (en2.length) blocks.push(section('글로벌 모빌리티', en2));
-    if (ai2.length) blocks.push(section('AI·Web3 신기술', ai2));
+    if (ko2.length) blocks.push(section('국내', ko2));
+    if (en2.length) blocks.push(section('글로벌', en2));
+    if (ai2.length) blocks.push(section('AI 신기술', ai2));
     const text = blocks.join('\n\n');
 
     await sendMessage(CHAT_ID, text, { disablePreview: true });
