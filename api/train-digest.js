@@ -1,4 +1,4 @@
-// api/train-digest.js — min-per-category(4) + Naver on + AI/Web3는 한국어만
+// api/train-digest.js
 import {
   fetchGoogleNewsRSS,
   fetchNaverNewsAPI,
@@ -9,7 +9,6 @@ import {
 import { classifyCategory } from './common/classify.js';
 import { passesBlacklist, withinFreshWindow, notDuplicated7d } from './common/filters.js';
 import { rankArticles, buildPrefVectorFromLikes } from './common/ranking.js';
-import { summarizeOneLine } from './common/summarizer.js';
 import { sendMessage } from './common/telegram.js';
 import { kv } from './common/kv.js';
 import { sha1, shortenUrl } from './common/utils.js';
@@ -96,10 +95,14 @@ export default async function handler(req, res) {
       { disablePreview: true }
     );
 
-    const sendItem = async (cat, it, idx) => {
-      const oneLine = summarizeOneLine(it);
+    const sendItem = async (cat, it) => {
+      // 신문사 제거
+      const cleanTitle = it.title.split(' - ')[0];
+      // 숏링크 적용
       const shortUrl = await shortenUrl(it.url);
-      const body = `[#${cat}] ${idx + 1}. ${it.title}\n${oneLine}\n${shortUrl}`;
+      // 포맷: [#카테고리] 제목 \n "숏링크"
+      const body = `[#${cat}] ${cleanTitle}\n${shortUrl}`;
+
       const compactId = (await sha1(it.url)).slice(0, 16);
       const buttons = [[
         { text: '좋아요',      callback_data: `like|${cat}|${compactId}` },
@@ -113,7 +116,7 @@ export default async function handler(req, res) {
       ['글로벌 모빌리티', en4],
       ['AI·Web3 신기술', ai4],
     ]) {
-      for (let i = 0; i < arr.length; i++) await sendItem(cat, arr[i], i);
+      for (const it of arr) await sendItem(cat, it);
     }
 
     res.status(200).json({ ok: true, sent: true });
