@@ -1,4 +1,4 @@
-// api/main-digest.js — min-per-category(2) + Naver on + AI/Web3는 한국어만
+// api/main-digest.js
 import {
   fetchGoogleNewsRSS,
   fetchNaverNewsAPI,
@@ -10,7 +10,7 @@ import { classifyCategory } from './common/classify.js';
 import { passesBlacklist, withinFreshWindow, notDuplicated7d } from './common/filters.js';
 import { rankArticles, buildPrefVectorFromLikes } from './common/ranking.js';
 import { sendMessage } from './common/telegram.js';
-import { formatDateKST } from './common/utils.js';
+import { formatDateKST, shortenUrl } from './common/utils.js';
 import { kv } from './common/kv.js';
 
 const CHAT_ID = process.env.CHAT_ID_MAIN;
@@ -71,18 +71,18 @@ function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48, 72]) {
   return last;
 }
 
-// ✅ 포맷 수정
+// ✅ 포맷 수정 + 숏링크 적용
 function header() {
   return `[DT News | ${formatDateKST()}]`;
 }
 
-function section(title, arr) {
+async function section(title, arr) {
   const lines = [`\n[${title}]`];
-  arr.forEach((it) => {
+  for (const it of arr) {
+    const shortUrl = await shortenUrl(it.url);
     lines.push(`■ ${it.title}`);
-    // 현재는 원본 URL, 추후 숏링크 함수 붙여서 변환 가능
-    lines.push(it.url);
-  });
+    lines.push(shortUrl);
+  }
   return lines.join('\n');
 }
 
@@ -112,9 +112,9 @@ export default async function handler(req, res) {
     const ai2 = pick2(pools['AI/Web3']); // 이미 한국어만 들어옴
 
     const blocks = [header()];
-    if (ko2.length) blocks.push(section('국내', ko2));
-    if (en2.length) blocks.push(section('글로벌', en2));
-    if (ai2.length) blocks.push(section('AI 신기술', ai2));
+    if (ko2.length) blocks.push(await section('국내', ko2));
+    if (en2.length) blocks.push(await section('글로벌', en2));
+    if (ai2.length) blocks.push(await section('AI 신기술', ai2));
     const text = blocks.join('\n\n');
 
     await sendMessage(CHAT_ID, text, { disablePreview: true });
