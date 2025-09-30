@@ -17,7 +17,6 @@ export function isKoreanText(s = '') {
 }
 
 export function isEnglishText(s = '') {
-  // 영어 알파벳 비율이 일정 이상이면 영어로 간주
   const letters = (s.match(/[A-Za-z]/g) || []).length;
   return letters > Math.max(10, s.length * 0.4);
 }
@@ -26,8 +25,8 @@ export function normalizeUrl(u = '') {
   try {
     const url = new URL(u);
     url.hash = '';
-    // 추적 파라미터 제거
-    ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid'].forEach(k=>url.searchParams.delete(k));
+    ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid']
+      .forEach(k => url.searchParams.delete(k));
     return url.toString();
   } catch {
     return u;
@@ -43,7 +42,6 @@ export function clampWords(str = '', maxWords = 18) {
 }
 
 export function clampBytesUTF8(str = '', maxBytes = 220) {
-  // 대략적인 바이트 제한(한글 2~3바이트 감안)으로 70~110자 수준
   const enc = new TextEncoder();
   let out = '';
   for (const ch of str) {
@@ -55,22 +53,21 @@ export function clampBytesUTF8(str = '', maxBytes = 220) {
 }
 
 export function sha1(str) {
-  // 간단 해시(중복키용). Node 18+ crypto.subtle 사용
   const buf = new TextEncoder().encode(str);
   return crypto.subtle.digest('SHA-1', buf).then(arr =>
     Array.from(new Uint8Array(arr)).map(b=>b.toString(16).padStart(2,'0')).join('')
   );
 }
 
-// ✅ 여기 추가
+// ✅ TinyURL API 기반 숏링크
 export async function shortenUrl(url) {
   try {
-    const api = `https://buly.kr/api/shorten?url=${encodeURIComponent(url)}`;
+    const api = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`;
     const r = await fetch(api);
-    if (!r.ok) return url; // 실패 시 원본 반환
-    const j = await r.json();
-    return j?.short_url || url;
+    if (!r.ok) return url;
+    const short = await r.text();
+    return short.startsWith('http') ? short : url;
   } catch {
-    return url; // 실패 시 원본
+    return url;
   }
 }
