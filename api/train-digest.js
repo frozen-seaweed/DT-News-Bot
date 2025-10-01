@@ -5,13 +5,13 @@ import {
   fetchDailycarRSS,
   fetchGlobalAutonewsHTML,
   fetchCustomNewsAPI,
-} from './common/adapters.js';
-import { classifyCategory } from './common/classify.js';
-import { passesBlacklist, withinFreshWindow, notDuplicated7d } from './common/filters.js';
-import { rankArticles, buildPrefVectorFromLikes } from './common/ranking.js';
-import { sendMessage } from './common/telegram.js';
-import { kv } from './common/kv.js';
-import { sha1, shortenUrl } from './common/utils.js';
+} from '../common/adapters.js';
+import { classifyCategory } from '../common/classify.js';
+import { passesBlacklist, withinFreshWindow, notDuplicated7d } from '../common/filters.js';
+import { rankArticles, buildPrefVectorFromLikes } from '../common/ranking.js';
+import { sendMessage } from '../common/telegram.js';
+import { kv } from '../common/kv.js';
+import { sha1, shortenUrl } from '../common/utils.js';
 
 const CHAT_ID = process.env.CHAT_ID_LIKE;
 const REPORT_ID = process.env.CHAT_ID_REPORT;
@@ -43,6 +43,7 @@ function group(items) {
   for (const it of items) g[classifyCategory(it)].push(it);
   return g;
 }
+
 async function prefs() {
   const raw = await kv.get('likes:recent');
   const likes = raw ? JSON.parse(raw) : [];
@@ -98,7 +99,7 @@ export default async function handler(req, res) {
       const body = `[#${cat}] ${cleanTitle}\n${shortUrl}`;
       const compactId = (await sha1(it.url)).slice(0, 16);
       const buttons = [[
-        { text: '👍',      callback_data: `like|${cat}|${compactId}` },
+        { text: '👍', callback_data: `like|${cat}|${compactId}` },
         { text: '❌', callback_data: `dislike|${cat}|${compactId}` },
       ]];
       await sendMessage(CHAT_ID, body, { disablePreview: true, buttons });
