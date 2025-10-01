@@ -20,7 +20,6 @@ const REPORT_ID = process.env.CHAT_ID_REPORT;
 async function collect() {
   const arr = [];
 
-  // Google: 국내 모빌리티(ko), 글로벌(en), 신기술(ko)
   arr.push(...await fetchGoogleNewsRSS({
     query: '(현대차 OR 기아 OR 자동차 OR 자율주행 OR 전기차 OR 완성차) -연예 -프로야구',
     lang: 'ko', region: 'KR'
@@ -34,11 +33,9 @@ async function collect() {
     lang: 'ko', region: 'KR'
   }));
 
-  // NAVER: 국내 모빌리티 + 신기술(국문)
   arr.push(...await fetchNaverNewsAPI({ query: '자동차 OR 자율주행 OR 전기차 OR 완성차' }));
   arr.push(...await fetchNaverNewsAPI({ query: '인공지능 OR AI OR 로봇 OR 로보틱스 OR 웹3 OR 블록체인 OR 반도체 OR 칩' }));
 
-  // 고정 소스
   arr.push(...await fetchDailycarRSS());
   arr.push(...await fetchGlobalAutonewsHTML());
   arr.push(...await fetchCustomNewsAPI());
@@ -76,18 +73,18 @@ function header() {
   return `[DT News | ${formatDateKST()}]`;
 }
 
-// ✅ summarizeOneLine만 표시 + 숏링크 + 기사 간 줄 간격
+// ✅ summarizeOneLine + 숏링크 + 기사 간 빈 줄
 async function section(title, arr) {
   if (!arr || arr.length === 0) {
     return `\n[${title}]\n(오늘 기사 없음)`;
   }
   const lines = [`\n[${title}]`];
   for (const it of arr) {
-    const summary = summarizeOneLine(it); // 요약 생성
-    const shortUrl = await shortenUrl(it.url); // 숏링크 변환
+    const summary = summarizeOneLine(it);
+    const shortUrl = await shortenUrl(it.url);
     lines.push(`■ ${summary}`);
     lines.push(shortUrl);
-    lines.push(''); // 기사 간 빈 줄
+    lines.push('');
   }
   return lines.join('\n').trim();
 }
@@ -97,7 +94,6 @@ export default async function handler(req, res) {
     let items = await collect();
     items = items.filter(passesBlacklist);
 
-    // 7일 중복 제거
     const uniq = [];
     const seen = new Set();
     for (const it of items) {
@@ -108,33 +104,34 @@ export default async function handler(req, res) {
       }
     }
 
-    const pools = poolsWithMin(uniq, { ko: 2, en: 2, ai: 2 });
+    // ✅ 카테고리당 4개씩 뽑기
+    const pools = poolsWithMin(uniq, { ko: 4, en: 4, ai: 4 });
     const pref = await prefs();
     const score = (_s) => 1;
-    const pick2 = (l) => rankArticles(l, { prefMap: pref, sourceScore: score }).slice(0, 2);
+    const pick4 = (l) => rankArticles(l, { prefMap: pref, sourceScore: score }).slice(0, 4);
 
-    const ko2 = pick2(pools['국내 모빌리티']);
-    const en2 = pick2(pools['글로벌 모빌리티']);
-    const ai2 = pick2(pools['AI/Web3']); 
+    const ko4 = pick4(pools['국내 모빌리티']);
+    const en4 = pick4(pools['글로벌 모빌리티']);
+    const ai4 = pick4(pools['AI/Web3']);
 
     const blocks = [header()];
-    blocks.push(await section('국내', ko2));
-    blocks.push(await section('글로벌', en2));
-    blocks.push(await section('AI 신기술', ai2));
+    blocks.push(await section('국내', ko4));
+    blocks.push(await section('글로벌', en4));
+    blocks.push(await section('AI 신기술', ai4));
     const text = blocks.join('\n\n');
 
     await sendMessage(CHAT_ID, text, { disablePreview: true });
     await kv.incrby('expo:count', 1);
 
-    res.status(200).json({ 
-      ok: true, 
-      sent: true, 
-      counts: { ko: ko2.length, en: en2.length, ai: ai2.length }, 
-      preview: text 
+    res.status(200).json({
+      ok: true,
+      sent: true,
+      counts: { ko: ko4.length, en: en4.length, ai: ai4.length },
+      preview: text
     });
   } catch (e) {
-    try { 
-      await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`); 
+    try {
+      await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`);
     } catch {}
     res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
