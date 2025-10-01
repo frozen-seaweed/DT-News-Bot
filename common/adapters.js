@@ -56,7 +56,7 @@ export async function fetchGoogleNewsRSS({ query, lang = 'en', region = 'US', li
 }
 
 /** NAVER Open API (검색 뉴스) — 환경변수 필요 */
-export async function fetchNaverNewsAPI({ query, display = 30, sort = 'date' }) {
+export async function fetchNaverNewsAPI({ query, display = 100, sort = 'date' }) {
   const id = process.env.NAVER_CLIENT_ID;
   const secret = process.env.NAVER_CLIENT_SECRET;
   if (!id || !secret) return [];
