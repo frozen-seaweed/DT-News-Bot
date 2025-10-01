@@ -1,131 +1,81 @@
-// api/main-digest.js
+// 상단에 추가
 import {
   fetchGoogleNewsRSS,
   fetchNaverNewsAPI,
   fetchDailycarRSS,
   fetchGlobalAutonewsHTML,
-  fetchCustomNewsAPI,
 } from '../common/adapters.js';
-import { classifyCategory } from '../common/classify.js';
-import { passesBlacklist, withinFreshWindow, notDuplicated7d } from '../common/filters.js';
-import { rankArticles, buildPrefVectorFromLikes } from '../common/ranking.js';
-import { sendMessage } from '../common/telegram.js';
-import { formatDateKST, shortenUrl } from '../common/utils.js';
-import { kv } from '../common/kv.js';
-import { summarizeOneLine } from '../common/summarizer.js';
 
-const CHAT_ID = process.env.CHAT_ID_MAIN;
-const REPORT_ID = process.env.CHAT_ID_REPORT;
+const NEED = 4;
 
-async function collect() {
-  const arr = [];
-  arr.push(...await fetchGoogleNewsRSS({
-    query: '(현대차 OR 기아 OR 자동차 OR 자율주행 OR 전기차 OR 완성차) -연예 -프로야구',
-    lang: 'ko', region: 'KR'
-  }));
-  arr.push(...await fetchGoogleNewsRSS({
-    query: '(EV OR autonomous OR mobility OR robotaxi OR charging) (Tesla OR BYD OR Hyundai OR Kia OR GM OR Waymo)',
-    lang: 'en', region: 'US'
-  }));
-  arr.push(...await fetchGoogleNewsRSS({
-    query: '(인공지능 OR AI OR 생성형 OR 로봇 OR 로보틱스 OR 웹3 OR 블록체인 OR 반도체 OR 칩)',
-    lang: 'ko', region: 'KR'
-  }));
-  arr.push(...await fetchNaverNewsAPI({ query: '자동차 OR 자율주행 OR 전기차 OR 완성차' }));
-  arr.push(...await fetchNaverNewsAPI({ query: '인공지능 OR AI OR 로봇 OR 로보틱스 OR 웹3 OR 블록체인 OR 반도체 OR 칩' }));
-  arr.push(...await fetchDailycarRSS());
-  arr.push(...await fetchGlobalAutonewsHTML());
-  arr.push(...await fetchCustomNewsAPI());
-  return arr;
-}
+const dedup = (arr) => {
+  const seen = new Set();
+  return arr.filter(it => {
+    const k = (it.url || it.title).trim();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
 
-function group(items) {
-  const g = { '국내 모빌리티': [], '글로벌 모빌리티': [], 'AI/Web3': [] };
-  for (const it of items) g[classifyCategory(it)].push(it);
-  return g;
-}
-
-async function prefs() {
-  const raw = await kv.get('likes:recent');
-  const likes = raw ? JSON.parse(raw) : [];
-  return buildPrefVectorFromLikes(likes);
-}
-
-// ✅ 메인은 카테고리당 최소 4개, 최대 48시간 기사까지
-function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48]) {
-  let last = group(itemsAll.filter((x) => withinFreshWindow(x, hoursList.at(-1))));
-  for (const h of hoursList) {
-    const g = group(itemsAll.filter((x) => withinFreshWindow(x, h)));
-    const ok =
-      (g['국내 모빌리티'].length >= (targets.ko || 0)) &&
-      (g['글로벌 모빌리티'].length >= (targets.en || 0)) &&
-      (g['AI/Web3'].length >= (targets.ai || 0));
-    last = g;
-    if (ok) return g;
-  }
-  return last;
-}
-
-function header() {
-  return `[DT News | ${formatDateKST()}]`;
-}
-
-async function section(title, arr) {
-  if (!arr || arr.length === 0) {
-    return `\n[${title}]\n(오늘 기사 없음)`;
-  }
-  const lines = [`\n[${title}]`];
-  for (const it of arr) {
-    const summary = summarizeOneLine(it);
-    const shortUrl = await shortenUrl(it.url);
-    lines.push(`■ ${summary}`);
-    lines.push(shortUrl);
-    lines.push('');
-  }
-  return lines.join('\n').trim();
-}
-
-export default async function handler(req, res) {
-  try {
-    let items = await collect();
-    items = items.filter(passesBlacklist);
-
-    const uniq = [];
-    const seen = new Set();
+async function atLeast(fetchers, need = NEED) {
+  const bag = [];
+  const seen = new Set();
+  for (const f of fetchers) {
+    const items = await f();
     for (const it of items) {
-      const key = it.url;
-      if (it.title && it.url && !seen.has(key) && await notDuplicated7d(it)) {
-        seen.add(key);
-        uniq.push(it);
-      }
+      const k = it.url || it.title;
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      bag.push(it);
+      if (bag.length >= need) return bag.slice(0, need);
     }
-
-    const pools = poolsWithMin(uniq, { ko: 4, en: 4, ai: 4 });
-    const pref = await prefs();
-    const score = (_s) => 1;
-    const pick4 = (l) => rankArticles(l, { prefMap: pref, sourceScore: score }).slice(0, 4);
-
-    const ko4 = pick4(pools['국내 모빌리티']);
-    const en4 = pick4(pools['글로벌 모빌리티']);
-    const ai4 = pick4(pools['AI/Web3']);
-
-    const blocks = [header()];
-    blocks.push(await section('국내', ko4));
-    blocks.push(await section('글로벌', en4));
-    blocks.push(await section('AI 신기술', ai4));
-    const text = blocks.join('\n\n');
-
-    await sendMessage(CHAT_ID, text, { disablePreview: true });
-    await kv.incrby('expo:count', 1);
-
-    res.status(200).json({
-      ok: true,
-      sent: true,
-      counts: { ko: ko4.length, en: en4.length, ai: ai4.length },
-      preview: text
-    });
-  } catch (e) {
-    try { await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`); } catch {}
-    res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
+  return bag.slice(0, need);
 }
+
+// 국내 4개 강제
+async function getKO4() {
+  return atLeast([
+    () => fetchNaverNewsAPI({ query: '자동차 OR 전기차 OR 모빌리티', display: 50, sort: 'date' }),
+    () => fetchGoogleNewsRSS({ query: '자동차 OR 전기차', lang: 'ko', region: 'KR', limit: 50 }),
+    () => fetchDailycarRSS(50),
+    () => fetchGlobalAutonewsHTML(50),
+  ]);
+}
+
+// 글로벌 4개 강제
+async function getEN4() {
+  const queries = [
+    'automotive industry',
+    'electric vehicle OR EV',
+    'autonomous driving OR ADAS',
+    'mobility business',
+  ];
+  const regions = ['US', 'GB', 'CA', 'AU'];
+  const steps = [];
+  for (const q of queries) {
+    for (const r of regions) {
+      steps.push(() => fetchGoogleNewsRSS({ query: q, lang: 'en', region: r, limit: 50 }));
+    }
+  }
+  return atLeast(steps);
+}
+
+// AI 4개 강제
+async function getAI4() {
+  return atLeast([
+    () => fetchGoogleNewsRSS({ query: 'autonomous driving AI OR driver assistance AI', lang: 'en', region: 'US', limit: 50 }),
+    () => fetchNaverNewsAPI({ query: '자율주행 인공지능 OR ADAS', display: 50, sort: 'date' }),
+    () => fetchGoogleNewsRSS({ query: 'robotaxi OR self-driving', lang: 'en', region: 'US', limit: 50 }),
+  ]);
+}
+
+// 기존 핸들러 내부에서 수집하는 부분을 아래로 교체
+const [koNews, enNews, aiNews] = await Promise.all([
+  getKO4().then(dedup),
+  getEN4().then(dedup),
+  getAI4().then(dedup),
+]);
+
+// counts, preview 구성 시 koNews/enNews/aiNews 사용
