@@ -1,7 +1,7 @@
 name: weekly-learning
 on:
   schedule:
-    - cron: '0 8 * * 1'   # 월요일 08:00 UTC = KST 17:00
+    - cron: '0 23 * * *'   # 매일 23:00 UTC = KST 오전 8시
   workflow_dispatch: {}
 
 jobs:
