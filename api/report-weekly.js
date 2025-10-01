@@ -1,7 +1,7 @@
 // api/report-weekly.js — stable + chatId echo for debugging
-import { kv } from './common/kv.js';
-import { sendMessage } from './common/telegram.js';
-import { formatDateKST } from './common/utils.js';
+import { kv } from '../common/kv.js';
+import { sendMessage } from '../common/telegram.js';
+import { formatDateKST } from '../common/utils.js';
 
 function getApiKeyFromReq(req) {
   // header 우선, 없으면 ?key= 허용(브라우저 테스트용)
