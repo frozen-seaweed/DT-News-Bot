@@ -5,14 +5,14 @@ import {
   fetchDailycarRSS,
   fetchGlobalAutonewsHTML,
   fetchCustomNewsAPI,
-} from './common/adapters.js';
-import { classifyCategory } from './common/classify.js';
-import { passesBlacklist, withinFreshWindow, notDuplicated7d } from './common/filters.js';
-import { rankArticles, buildPrefVectorFromLikes } from './common/ranking.js';
-import { sendMessage } from './common/telegram.js';
-import { formatDateKST, shortenUrl } from './common/utils.js';
-import { kv } from './common/kv.js';
-import { summarizeOneLine } from './common/summarizer.js';
+} from '../common/adapters.js';
+import { classifyCategory } from '../common/classify.js';
+import { passesBlacklist, withinFreshWindow, notDuplicated7d } from '../common/filters.js';
+import { rankArticles, buildPrefVectorFromLikes } from '../common/ranking.js';
+import { sendMessage } from '../common/telegram.js';
+import { formatDateKST, shortenUrl } from '../common/utils.js';
+import { kv } from '../common/kv.js';
+import { summarizeOneLine } from '../common/summarizer.js';
 
 const CHAT_ID = process.env.CHAT_ID_MAIN;
 const REPORT_ID = process.env.CHAT_ID_REPORT;
