@@ -1,5 +1,6 @@
-import { answerCallbackQuery } from './common/telegram.js';
-import { kv } from './common/kv.js';
+// api/tg-webhook.js
+import { answerCallbackQuery } from '../common/telegram.js';
+import { kv } from '../common/kv.js';
 
 export default async function handler(req, res) {
   try {
