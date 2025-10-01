@@ -1,7 +1,7 @@
 name: weekly-learning
 on:
   schedule:
-    - cron: '0 23 * * *'   # 매일 23:00 UTC = KST 오전 8시
+    - cron: '0 23 * * *'   # 매일 23:00 UTC = 한국 오전 8시
   workflow_dispatch: {}
 
 jobs:
@@ -16,6 +16,6 @@ jobs:
             -d '{}'
     env:
       API_BASE: ${{ secrets.API_BASE }}
-      API_KEY:  ${{ secrets.API_KEY }}
-NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
-  NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+      API_KEY: ${{ secrets.API_KEY }}
+      NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+      NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
