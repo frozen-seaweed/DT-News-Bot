@@ -17,3 +17,5 @@ jobs:
     env:
       API_BASE: ${{ secrets.API_BASE }}
       API_KEY:  ${{ secrets.API_KEY }}
+NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+  NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
