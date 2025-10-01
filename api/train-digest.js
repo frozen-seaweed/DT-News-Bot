@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
     await sendMessage(
       CHAT_ID,
-      '좋아요: 해당 기사로 익일에 메인 뉴스로 발송됩니다.\n관심 없어요: 해당 기사는 앞으로 추천하지 않습니다. (완전히 관련 없는 기사에만 눌러주세요.)',
+      '👍: 해당 기사로 익일에 메인 뉴스로 발송됩니다.\n❌: 해당 기사는 앞으로 추천하지 않습니다. (완전히 관련 없는 기사에만 눌러주세요.)',
       { disablePreview: true }
     );
 
@@ -98,8 +98,8 @@ export default async function handler(req, res) {
       const body = `[#${cat}] ${cleanTitle}\n${shortUrl}`;
       const compactId = (await sha1(it.url)).slice(0, 16);
       const buttons = [[
-        { text: '좋아요',      callback_data: `like|${cat}|${compactId}` },
-        { text: '관심 없어요', callback_data: `dislike|${cat}|${compactId}` },
+        { text: '👍',      callback_data: `like|${cat}|${compactId}` },
+        { text: '❌', callback_data: `dislike|${cat}|${compactId}` },
       ]];
       await sendMessage(CHAT_ID, body, { disablePreview: true, buttons });
     };
