@@ -1,7 +1,7 @@
 name: weekly-report
 on:
   schedule:
-    - cron: '0 11 * * 0'   # 일요일 11:00 UTC = KST 20:00
+    - cron: '0 11 * * 0'   # 매주 일요일 11:00 UTC = 한국 20:00
   workflow_dispatch: {}
 
 jobs:
@@ -16,6 +16,6 @@ jobs:
             -d '{}'
     env:
       API_BASE: ${{ secrets.API_BASE }}
-      API_KEY:  ${{ secrets.API_KEY }}
-NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
-  NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+      API_KEY: ${{ secrets.API_KEY }}
+      NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+      NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
