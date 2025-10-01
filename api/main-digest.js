@@ -19,7 +19,6 @@ const REPORT_ID = process.env.CHAT_ID_REPORT;
 
 async function collect() {
   const arr = [];
-
   arr.push(...await fetchGoogleNewsRSS({
     query: '(현대차 OR 기아 OR 자동차 OR 자율주행 OR 전기차 OR 완성차) -연예 -프로야구',
     lang: 'ko', region: 'KR'
@@ -32,14 +31,11 @@ async function collect() {
     query: '(인공지능 OR AI OR 생성형 OR 로봇 OR 로보틱스 OR 웹3 OR 블록체인 OR 반도체 OR 칩)',
     lang: 'ko', region: 'KR'
   }));
-
   arr.push(...await fetchNaverNewsAPI({ query: '자동차 OR 자율주행 OR 전기차 OR 완성차' }));
   arr.push(...await fetchNaverNewsAPI({ query: '인공지능 OR AI OR 로봇 OR 로보틱스 OR 웹3 OR 블록체인 OR 반도체 OR 칩' }));
-
   arr.push(...await fetchDailycarRSS());
   arr.push(...await fetchGlobalAutonewsHTML());
   arr.push(...await fetchCustomNewsAPI());
-
   return arr;
 }
 
@@ -55,7 +51,8 @@ async function prefs() {
   return buildPrefVectorFromLikes(likes);
 }
 
-function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48, 72]) {
+// ✅ 메인은 카테고리당 최소 4개, 최대 48시간 기사까지
+function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48]) {
   let last = group(itemsAll.filter((x) => withinFreshWindow(x, hoursList.at(-1))));
   for (const h of hoursList) {
     const g = group(itemsAll.filter((x) => withinFreshWindow(x, h)));
@@ -73,7 +70,6 @@ function header() {
   return `[DT News | ${formatDateKST()}]`;
 }
 
-// ✅ summarizeOneLine + 숏링크 + 기사 간 빈 줄
 async function section(title, arr) {
   if (!arr || arr.length === 0) {
     return `\n[${title}]\n(오늘 기사 없음)`;
@@ -104,7 +100,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // ✅ 카테고리당 4개씩 뽑기
     const pools = poolsWithMin(uniq, { ko: 4, en: 4, ai: 4 });
     const pref = await prefs();
     const score = (_s) => 1;
@@ -130,9 +125,7 @@ export default async function handler(req, res) {
       preview: text
     });
   } catch (e) {
-    try {
-      await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`);
-    } catch {}
+    try { await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`); } catch {}
     res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
 }
