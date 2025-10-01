@@ -80,19 +80,20 @@ export default async function handler(req, res) {
       }
     }
 
-    const pools = poolsWithMin(uniq, { ko: 4, en: 4, ai: 4 });
+    // ✅ 카테고리별 최소 8개씩 확보
+    const pools = poolsWithMin(uniq, { ko: 8, en: 8, ai: 8 });
     const pref = await prefs();
     const score = (_s) => 1;
-    const pick4 = (l) => rankArticles(l, { prefMap: pref, sourceScore: score }).slice(0, 4);
+    const pick8 = (l) => rankArticles(l, { prefMap: pref, sourceScore: score }).slice(0, 8);
 
-    const ko4 = pick4(pools['국내 모빌리티']);
-    const en4 = pick4(pools['글로벌 모빌리티']);
-    const ai4 = pick4(pools['AI/Web3']);
+    const ko8 = pick8(pools['국내 모빌리티']);
+    const en8 = pick8(pools['글로벌 모빌리티']);
+    const ai8 = pick8(pools['AI/Web3']);
 
-    // ✅ 안내 문구 수정
+    // ✅ 안내 문구
     await sendMessage(
       CHAT_ID,
-      '좋아요: 해당 기사로 익일에 메인 뉴스로 발송됩니다.\n관심 없어요: 해당 기사는 앞으로 추천하지 않습니다. (완전히 관련 없는 기사에만 눌러주세요.)',
+      '👍: 해당 기사로 익일에 메인 뉴스로 발송됩니다.\n👎: 해당 기사는 앞으로 추천하지 않습니다. (완전히 관련 없는 기사에만 눌러주세요.)',
       { disablePreview: true }
     );
 
@@ -103,16 +104,16 @@ export default async function handler(req, res) {
 
       const compactId = (await sha1(it.url)).slice(0, 16);
       const buttons = [[
-        { text: '좋아요',      callback_data: `like|${cat}|${compactId}` },
-        { text: '관심 없어요', callback_data: `dislike|${cat}|${compactId}` },
+        { text: '👍',      callback_data: `like|${cat}|${compactId}` },
+        { text: '👎', callback_data: `dislike|${cat}|${compactId}` },
       ]];
       await sendMessage(CHAT_ID, body, { disablePreview: true, buttons });
     };
 
     for (const [cat, arr] of [
-      ['국내 모빌리티', ko4],
-      ['글로벌 모빌리티', en4],
-      ['AI·Web3 신기술', ai4],
+      ['국내 모빌리티', ko8],
+      ['글로벌 모빌리티', en8],
+      ['AI·Web3 신기술', ai8],
     ]) {
       for (const it of arr) await sendItem(cat, it);
     }
