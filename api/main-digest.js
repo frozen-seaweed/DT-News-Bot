@@ -1,4 +1,4 @@
-// api/main-digest.js — 4 articles per category version
+// api/main-digest.js — Telegram formatted version (■, 링크 포함, 중복 제거)
 import {
   fetchGoogleNewsRSS,
   fetchNaverNewsAPI,
@@ -49,21 +49,21 @@ async function collect() {
 }
 
 // ------------------------------
-// 카테고리 분류
+// 카테고리 그룹화
 // ------------------------------
 function group(items) {
   const g = { '국내': [], '글로벌': [], 'AI 신기술': [] };
   for (const it of items) {
     const cat = classifyCategory(it);
-    if (cat === '국내 모빌리티') g['국내'].push(it);
-    else if (cat === '글로벌 모빌리티') g['글로벌'].push(it);
+    if (cat.includes('국내')) g['국내'].push(it);
+    else if (cat.includes('글로벌')) g['글로벌'].push(it);
     else g['AI 신기술'].push(it);
   }
   return g;
 }
 
 // ------------------------------
-// 유저 선호도
+// 선호 벡터
 // ------------------------------
 async function prefs() {
   const raw = await kv.get('likes:recent');
@@ -99,8 +99,9 @@ function section(title, arr) {
   const lines = [`[${title}]`];
   for (const it of arr) {
     const source = it.source || it.site || '';
+    const url = it.url || it.link || '';
     lines.push(`■ ${it.title}${source ? ` - ${source}` : ''}`);
-    lines.push(it.url);
+    if (url) lines.push(url);
     lines.push('');
   }
   return lines.join('\n');
@@ -127,7 +128,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4개 보장
+    // 최소 4개 확보
     const pools = poolsWithMin(uniq, { ko: 4, en: 4, ai: 4 });
     const pref = await prefs();
     const score = (_s) => 1;
