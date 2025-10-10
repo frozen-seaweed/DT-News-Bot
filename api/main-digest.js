@@ -1,4 +1,4 @@
-// api/main-digest.js — Telegram formatted version (■, 링크 포함, 중복 제거)
+// api/main-digest.js — 모든 카테고리 4개씩, is.gd 링크 포함, 부족 시 있는 만큼 발송
 import {
   fetchGoogleNewsRSS,
   fetchNaverNewsAPI,
@@ -22,7 +22,6 @@ const REPORT_ID = process.env.CHAT_ID_REPORT;
 async function collect() {
   const arr = [];
 
-  // Google News
   arr.push(...await fetchGoogleNewsRSS({
     query: '(현대차 OR 기아 OR 자동차 OR 자율주행 OR 전기차 OR 완성차) -연예 -프로야구',
     lang: 'ko', region: 'KR'
@@ -36,11 +35,9 @@ async function collect() {
     lang: 'ko', region: 'KR'
   }));
 
-  // Naver
   arr.push(...await fetchNaverNewsAPI({ query: '자동차 OR 자율주행 OR 전기차 OR 완성차' }));
   arr.push(...await fetchNaverNewsAPI({ query: '인공지능 OR AI OR 로봇 OR 로보틱스 OR 웹3 OR 블록체인 OR 반도체 OR 칩' }));
 
-  // RSS / HTML
   arr.push(...await fetchDailycarRSS());
   arr.push(...await fetchGlobalAutonewsHTML());
   arr.push(...await fetchCustomNewsAPI());
@@ -52,18 +49,18 @@ async function collect() {
 // 카테고리 그룹화
 // ------------------------------
 function group(items) {
-  const g = { '국내': [], '글로벌': [], 'AI 신기술': [] };
+  const g = { '국내 모빌리티': [], '글로벌 모빌리티': [], 'AI·Web3 신기술': [] };
   for (const it of items) {
     const cat = classifyCategory(it);
-    if (cat.includes('국내')) g['국내'].push(it);
-    else if (cat.includes('글로벌')) g['글로벌'].push(it);
-    else g['AI 신기술'].push(it);
+    if (cat.includes('국내')) g['국내 모빌리티'].push(it);
+    else if (cat.includes('글로벌')) g['글로벌 모빌리티'].push(it);
+    else g['AI·Web3 신기술'].push(it);
   }
   return g;
 }
 
 // ------------------------------
-// 선호 벡터
+// 유저 선호도
 // ------------------------------
 async function prefs() {
   const raw = await kv.get('likes:recent');
@@ -72,20 +69,37 @@ async function prefs() {
 }
 
 // ------------------------------
-// 기사 수 확보
+// is.gd 단축 링크 생성
+// ------------------------------
+async function shortenUrl(url) {
+  if (!url) return '';
+  try {
+    const api = `https://is.gd/create.php?format=simple&url=${encodeURIComponent(url)}`;
+    const short = await fetch(api).then(r => r.text());
+    return short.startsWith('http') ? short : url;
+  } catch {
+    return url;
+  }
+}
+
+// ------------------------------
+// 기사 수 확보 (부족해도 반환)
 // ------------------------------
 function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48, 72]) {
-  let last = group(itemsAll.filter((x) => withinFreshWindow(x, hoursList.at(-1))));
+  let result = {};
   for (const h of hoursList) {
     const g = group(itemsAll.filter((x) => withinFreshWindow(x, h)));
-    const ok =
-      (g['국내'].length >= (targets.ko || 0)) &&
-      (g['글로벌'].length >= (targets.en || 0)) &&
-      (g['AI 신기술'].length >= (targets.ai || 0));
-    last = g;
-    if (ok) return g;
+    if (
+      g['국내 모빌리티'].length >= (targets.ko || 0) ||
+      g['글로벌 모빌리티'].length >= (targets.en || 0) ||
+      g['AI·Web3 신기술'].length >= (targets.ai || 0)
+    ) {
+      result = g;
+      break;
+    }
+    result = g;
   }
-  return last;
+  return result;
 }
 
 // ------------------------------
@@ -95,13 +109,14 @@ function header() {
   return `[DT News | ${formatDateKST()}]`;
 }
 
-function section(title, arr) {
+async function section(title, arr) {
   const lines = [`[${title}]`];
   for (const it of arr) {
     const source = it.source || it.site || '';
     const url = it.url || it.link || '';
+    const shortUrl = await shortenUrl(url);
     lines.push(`■ ${it.title}${source ? ` - ${source}` : ''}`);
-    if (url) lines.push(url);
+    if (shortUrl) lines.push(shortUrl);
     lines.push('');
   }
   return lines.join('\n');
@@ -112,7 +127,6 @@ function section(title, arr) {
 // ------------------------------
 export default async function handler(req, res) {
   console.log('[main-digest] invoked at', new Date().toISOString());
-
   try {
     let items = await collect();
     items = items.filter(passesBlacklist);
@@ -128,20 +142,19 @@ export default async function handler(req, res) {
       }
     }
 
-    // 최소 4개 확보
     const pools = poolsWithMin(uniq, { ko: 4, en: 4, ai: 4 });
     const pref = await prefs();
     const score = (_s) => 1;
     const pickTopN = (l, n = 4) => rankArticles(l, { prefMap: pref, sourceScore: score }).slice(0, n);
 
-    const ko4 = pickTopN(pools['국내'], 4);
-    const en4 = pickTopN(pools['글로벌'], 4);
-    const ai4 = pickTopN(pools['AI 신기술'], 4);
+    const koList = pickTopN(pools['국내 모빌리티'], 4);
+    const enList = pickTopN(pools['글로벌 모빌리티'], 4);
+    const aiList = pickTopN(pools['AI·Web3 신기술'], 4);
 
     const blocks = [header()];
-    if (ko4.length) blocks.push(section('국내', ko4));
-    if (en4.length) blocks.push(section('글로벌', en4));
-    if (ai4.length) blocks.push(section('AI 신기술', ai4));
+    if (koList.length) blocks.push(await section('국내 모빌리티', koList));
+    if (enList.length) blocks.push(await section('글로벌 모빌리티', enList));
+    if (aiList.length) blocks.push(await section('AI·Web3 신기술', aiList));
 
     const text = blocks.join('\n\n');
 
@@ -149,7 +162,7 @@ export default async function handler(req, res) {
     await kv.incrby('expo:count', 1);
 
     console.log('[main-digest] sent successfully.');
-    res.status(200).json({ ok: true, sent: true, counts: { ko: ko4.length, en: en4.length, ai: ai4.length } });
+    res.status(200).json({ ok: true, sent: true, counts: { ko: koList.length, en: enList.length, ai: aiList.length } });
 
   } catch (e) {
     console.error('[main-digest] failed:', e);
