@@ -5,18 +5,21 @@ import {
   fetchDailycarRSS,
   fetchGlobalAutonewsHTML,
   fetchCustomNewsAPI,
-} from './common/adapters.js';
-import { classifyCategory } from './common/classify.js';
-import { passesBlacklist, withinFreshWindow, notDuplicated7d } from './common/filters.js';
-import { rankArticles, buildPrefVectorFromLikes } from './common/ranking.js';
-import { summarizeOneLine } from './common/summarizer.js';
-import { sendMessage } from './common/telegram.js';
-import { formatDateKST } from './common/utils.js';
-import { kv } from './common/kv.js';
+} from '../common/adapters.js';
+import { classifyCategory } from '../common/classify.js';
+import { passesBlacklist, withinFreshWindow, notDuplicated7d } from '../common/filters.js';
+import { rankArticles, buildPrefVectorFromLikes } from '../common/ranking.js';
+import { summarizeOneLine } from '../common/summarizer.js';
+import { sendMessage } from '../common/telegram.js';
+import { formatDateKST } from '../common/utils.js';
+import { kv } from '../common/kv.js';
 
 const CHAT_ID = process.env.CHAT_ID_MAIN;
 const REPORT_ID = process.env.CHAT_ID_REPORT;
 
+// ------------------------------
+// 뉴스 수집 단계
+// ------------------------------
 async function collect() {
   const arr = [];
 
@@ -46,18 +49,27 @@ async function collect() {
   return arr;
 }
 
+// ------------------------------
+// 그룹핑 / 카테고리 분류
+// ------------------------------
 function group(items) {
   const g = { '국내 모빌리티': [], '글로벌 모빌리티': [], 'AI/Web3': [] };
   for (const it of items) g[classifyCategory(it)].push(it);
   return g;
 }
 
+// ------------------------------
+// 사용자 선호 벡터
+// ------------------------------
 async function prefs() {
   const raw = await kv.get('likes:recent');
   const likes = raw ? JSON.parse(raw) : [];
   return buildPrefVectorFromLikes(likes);
 }
 
+// ------------------------------
+// 최소 기사 수 확보 로직
+// ------------------------------
 function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48, 72]) {
   let last = group(itemsAll.filter((x) => withinFreshWindow(x, hoursList.at(-1))));
   for (const h of hoursList) {
@@ -72,7 +84,11 @@ function poolsWithMin(itemsAll, targets, hoursList = [24, 36, 48, 72]) {
   return last;
 }
 
+// ------------------------------
+// 출력 포맷
+// ------------------------------
 function header() { return `${formatDateKST()} | DT AI News Bot`; }
+
 function section(title, arr) {
   const lines = [`[${title}]`];
   arr.forEach((it, i) => {
@@ -82,12 +98,17 @@ function section(title, arr) {
   return lines.join('\n');
 }
 
+// ------------------------------
+// 메인 핸들러
+// ------------------------------
 export default async function handler(req, res) {
+  console.log('[main-digest] invoked at', new Date().toISOString());
+
   try {
     let items = await collect();
     items = items.filter(passesBlacklist);
 
-    // 7일 중복 제거
+    // 중복 제거 (7일)
     const uniq = [];
     const seen = new Set();
     for (const it of items) {
@@ -111,14 +132,20 @@ export default async function handler(req, res) {
     if (ko2.length) blocks.push(section('국내 모빌리티', ko2));
     if (en2.length) blocks.push(section('글로벌 모빌리티', en2));
     if (ai2.length) blocks.push(section('AI·Web3 신기술', ai2));
+
     const text = blocks.join('\n\n');
 
     await sendMessage(CHAT_ID, text, { disablePreview: true });
     await kv.incrby('expo:count', 1);
 
+    console.log('[main-digest] sent successfully.');
     res.status(200).json({ ok: true, sent: true, counts: { ko: ko2.length, en: en2.length, ai: ai2.length } });
+
   } catch (e) {
-    try { await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`); } catch {}
+    console.error('[main-digest] failed:', e);
+    try {
+      await sendMessage(REPORT_ID || CHAT_ID, `❗️main-digest failed: ${String(e?.message || e)}`);
+    } catch {}
     res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
 }
